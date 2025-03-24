@@ -1,0 +1,7 @@
+pyTesseract
+pillow
+numpy
+opencv-python
+openai
+keyring
+boto3
