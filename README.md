@@ -2,7 +2,7 @@
 # Seer
 
 Seer is the companion application for Weaver and is the attacker console for the command and control channel. Included in this packages is the Python code for the console itself as well as the Terraform code for the infrastructure that is hosted in AWS. The AWS infrastructure looks like this:
-![Architecture diagram](assets/seerInfrastructure)
+![Architecture diagram](assets/seerInfrastructure.png)
 
 ## Installation
 
