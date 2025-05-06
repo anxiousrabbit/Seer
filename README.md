@@ -1,8 +1,7 @@
-
 # Seer
 
 Seer is the companion application for Weaver and is the attacker console for the command and control channel. Included in this packages is the Python code for the console itself as well as the Terraform code for the infrastructure that is hosted in AWS. The AWS infrastructure looks like this:
-![Architecture diagram](assets/seerInfrastructure)
+![Architecture diagram](assets/seerInfrastructure.png)
 
 ## Installation
 
@@ -35,6 +34,7 @@ Once the infrastructure is created, Seer can be ran.
 -l             Lists the hosts in the s3 bucket
 -o             Output the images received from the compromised host
 --commImage    Outputs the command image
+--voiceWrite   Outputs the recorded voice
 -b B           Sets the bucket to pull data from
 --init         Initialize the config file
 --reinit       Reinitializes the config file

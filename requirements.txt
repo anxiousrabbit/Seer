@@ -5,3 +5,5 @@ opencv-python
 openai
 keyring
 boto3
+SpeechRecognition
+pyaudio

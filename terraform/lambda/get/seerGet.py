@@ -63,6 +63,7 @@ def lambda_handler(event, context):
                 Bucket = bucket,
                 Key = key
             )
+            baseBodyType = response['ContentType']
             bodyBytes = response['Body'].read()
             baseBody = base64.b64encode(bodyBytes).decode("utf-8")
 
@@ -86,7 +87,7 @@ def lambda_handler(event, context):
             randBytes = response['Body'].read()
             randBody = base64.b64encode(randBytes).decode("utf-8")
 
-            body = {'body': baseBody, 'randImage':randBody}
+            body = {'body': baseBody, 'randImage':randBody, 'fileType':baseBodyType}
 
             # Delete the message
             response = sqs.delete_message (
