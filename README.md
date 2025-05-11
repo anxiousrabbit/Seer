@@ -8,7 +8,6 @@ Seer is the companion application for Weaver and is the attacker console for the
 Prior to installing seeing, make sure the most recent version of Python3 is installed and Terrform is installed. Along with that, make sure that you have an AWS account created and configured so Terraform can access the account for its infrastructure creation.
 
 ```bash
-brew install portaudio
 pip3 install -r requirements.txt
 cd terraform
 terraform plan
