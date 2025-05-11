@@ -320,7 +320,7 @@ class commandProcesing:
         # Adds the text to the image and places that in an object variable
         self.image = Image.open(self.imgDir + '/' + imgList[randomNum])
         textImg = ImageDraw.Draw(self.image)
-        font = ImageFont.truetype("font/SourceCodePro-Regular.ttf",60)
+        font = ImageFont.truetype("font/Inconsolata-Regular.ttf",100)
         textImg.text((20,20), command, fill=(255,255,255), font=font)
         imgBytes = io.BytesIO()
         self.image.save(imgBytes, format=self.extension)
@@ -537,8 +537,12 @@ class dynamoFunction():
         )
 
         # Print the result and update the time
-        print('Dynamo Entry:\n',response['Items'][0]['result']['S'])
-        self.currentTime = float(response['Items'][0]['commandTime']['N'])
+        try:
+            print('Dynamo Entry:\n',response['Items'][0]['result']['S'])
+            self.currentTime = float(response['Items'][0]['commandTime']['N'])
+        except:
+            print('Dynamo Entry: Error occurred...')
+            self.currentTime = time.time()
         
         if args.de == True:
             self.deleteEntry(hostname)
