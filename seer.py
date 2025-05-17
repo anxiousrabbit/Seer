@@ -128,8 +128,9 @@ def main(args):
                 # Get the file from the bucket
                 bucket.getBucketResuilt(sqs.message)
 
-                # Process the streaming data
-                cmdProcessing.streamProcess(args, bucket.streamingData)
+                if args.ml == True:
+                    # Process the streaming data
+                    cmdProcessing.streamProcess(args, bucket.streamingData)
 
                 # Delete the key
                 bucket.deleteKey(sqs.message)
@@ -553,8 +554,6 @@ class dynamoFunction():
             Key = {'commandTime': {'N': str(self.currentTime)}}
         )
 
-# TODO Refine the algorithms for both Weaver and Seer
-
 if __name__ == "__main__":
     # Setup the argparse
     parse = argparse.ArgumentParser()
@@ -563,6 +562,7 @@ if __name__ == "__main__":
     parse.add_argument('-de', help='Deletes the entry within dynamodb', action='store_true')
     parse.add_argument('-l', help='Lists the hosts in the s3 bucket', action='store_true')
     parse.add_argument('-o', help='Output the images received from the compromised host', action='store_true')
+    parse.add_argument('-ml', help='Analyze the image that is received from Weaver. This is less accurate.', action='store_true')
     parse.add_argument('--commImage', help='Outputs the command image', action='store_true')
     parse.add_argument('--voiceWrite', help='Outputs the recorded voice', action='store_true')
     parse.add_argument('-b', help='Sets the bucket to pull data from', type=str)
