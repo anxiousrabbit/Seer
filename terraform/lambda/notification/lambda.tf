@@ -26,6 +26,8 @@ resource "aws_iam_policy" "policy" {
       "Action": [
         "sqs:SendMessage",
         "sqs:GetQueueUrl",
+        "s3:GetObject",
+        "s3:HeadObject",
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
         "logs:PutLogEvents"

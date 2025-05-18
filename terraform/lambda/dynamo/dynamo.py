@@ -36,7 +36,7 @@ def lambda_handler(event, context):
         # Post the file to the s3
         if 'String' not in action or 'Error' not in action:
             key = 'compromised/' + table + "/result/" + fileName
-            s3Response = s3.put_object(Bucket=bucket, Key=key, Body=content)
+            s3Response = s3.put_object(Bucket=bucket, Key=key, Body=content, Metadata={'action':item['command']['S']})
         else:
             key = 'compromised/' + table + "/exfil/" + fileName
             s3Response = s3.put_object(Bucket=bucket, Key=key, Body=content)

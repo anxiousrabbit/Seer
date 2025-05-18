@@ -4,6 +4,7 @@ import json, boto3
 
 def lambda_handler(event, context):
     sqs = boto3.client('sqs')
+    s3 = boto3.client('s3')
     
     results = []
 
@@ -14,11 +15,16 @@ def lambda_handler(event, context):
         jsonEvent = event
     
     s3Info = jsonEvent['Records'][0]['s3']['object']['key']
+    s3Bucket = jsonEvent['Records'][0]['s3']['bucket']['name']
     
     # Grab the hostname
     splitKey = str(s3Info).split('/')
     if "result" in s3Info:
         queueName = splitKey[1] + '-Result'
+
+        # Get S3 metadata
+        response = s3.head_object(Bucket=s3Bucket, Key=s3Info)
+        metadata = response['Metadata']['action']
     else:
         queueName = splitKey[1] + '-Comped'
 
@@ -32,7 +38,25 @@ def lambda_handler(event, context):
         print(error) 
     
     # Post the message
-    if 'notification.txt' not in s3Info:
+    if 'notification.txt' not in s3Info and 'result' in s3Info:
+        try:
+            response = sqs.send_message (
+                QueueUrl = queueUrl,
+                MessageBody = splitKey[1],
+                MessageAttributes = {
+                'Path' : {
+                    'DataType': 'String',
+                    'StringValue': s3Info
+                },
+                'Action' : {
+                    'DataType':'String',
+                    'StringValue': metadata
+                }
+                }
+            )
+        except Exception as error:
+            print(error)
+    else:
         try:
             response = sqs.send_message (
                 QueueUrl = queueUrl,
